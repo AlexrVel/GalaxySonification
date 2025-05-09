@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Sonificación de Espectros Galácticos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  ACA SE IMPORTAN LOS ESTILOS DEL CSS QUE HAY ARRIBA
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <h1>Sonificación de Espectros Galácticos</h1>
+    <div class="main-layout">
+        <div class="form-col">
+            <form method="post" enctype="multipart/form-data" id="sonificarForm">
+                <div style="margin-bottom: 10px; font-size: 1.05em; color: #1976d2; font-weight: bold;">
+                    Rango permitido de longitud de onda: <span id="minWavelengthLabel">{{ min_wavelength|default(6500) }}</span> Å a <span id="maxWavelengthLabel">{{ max_wavelength|default(6700) }}</span> Å
+                </div>
+                <input type="file" name="archivo" id="archivo" onchange="resetRangosAlSubirArchivo(); this.setAttribute('data-file-loaded','true');">
+                <label for="rango_ini">Rango inicial (Å):</label>
+                <input type="number" name="rango_ini" id="rango_ini" value="{{ min_wavelength|default(6500) }}" min="{{ min_wavelength|default(6500) }}" max="{{ max_wavelength|default(6700) }}">
+                <label for="rango_fin">Rango final (Å):</label>
+                <input type="number" name="rango_fin" id="rango_fin" value="{{ max_wavelength|default(6700) }}" min="{{ min_wavelength|default(6500) }}" max="{{ max_wavelength|default(6700) }}">
+                <label for="tempo">Tempo (BPM):</label>
+                <input type="number" name="tempo" id="tempo" value="200">
+                <label for="duracion">Duración de nota (s):</label>
+                <input type="number" step="0.01" name="duracion" id="duracion" value="0.5">
+                <label for="instrumento_emision">Instrumento Emisión (General MIDI):</label>
+                <select name="instrumento_emision" id="instrumento_emision">
+                    <option value="midi_crudo" selected>MIDI crudo</option>
+                    <option value="24">Guitarra</option>
+                    <option value="0">Piano</option>
+                    <option value="40">Violín</option>
+                    <option value="56">Trompeta</option>
+                    <option value="73">Flauta</option>
+                </select>
+                <label for="instrumento_absorcion">Instrumento Absorción (General MIDI):</label>
+                <select name="instrumento_absorcion" id="instrumento_absorcion">
+                    <option value="midi_crudo" selected>MIDI crudo</option>
+                    <option value="24">Guitarra</option>
+                    <option value="0">Piano</option>
+                    <option value="40">Violín</option>
+                    <option value="56">Trompeta</option>
+                    <option value="73">Flauta</option>
+                </select>
+                <label for="tipo_galaxia">Tipo de galaxia:</label>
+                <select name="tipo_galaxia" id="tipo_galaxia" required>
+                    <option value="Elíptica">Elíptica</option>
+                    <option value="Espiral">Espiral</option>
+                </select>
+                <div class="botones">
+                    <button type="submit" id="sonificarBtn">Sonificar</button>
+                </div>
+            </form>
+            {% if resultado %}
+                <div class="resultado">{{ resultado }}</div>
+            {% endif %}
+            {% if tipo_galaxia %}
+                <div class="resultado">Tipo de galaxia detectado: <b>{{ tipo_galaxia }}</b></div>
+            {% endif %}
+            {% if archivo_emision or archivo_absorcion or archivo_completo %}
+            <div class="descargas">
+                {% if archivo_emision %}
+                    <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_emision) }}" target="_blank">Descargar MIDI Emisión</a>
+                {% endif %}
+                {% if archivo_absorcion %}
+                    <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_absorcion) }}" target="_blank">Descargar MIDI Absorción</a>
+                {% endif %}
+                {% if archivo_completo %}
+                    <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_completo) }}" target="_blank">Descargar MIDI Completo</a>
+                    <br>
+                    <!-- Eliminado el reproductor de audio nativo para MIDI -->
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="graph-col">
+            {% if archivo_emision or archivo_absorcion or archivo_completo %}
+            <div class="svg-container">
+                {% if resultado and not tipo_galaxia %}
+                    <div class="resultado">{{ resultado }}</div>
+                {% else %}
+                    <object id="svgObject" type="image/svg+xml" data="{{ url_for('mostrar_svg') }}" width="100%" height="440"></object>
+                    <div id="barra" class="barra-reproduccion" style="display:none;"></div>
+                {% endif %}
+            </div>
+            <!-- Barra de selección de rango de sonificación -->
+            <div id="region-slider-container" style="width:100%; margin: 10px 0 18px 0; display: flex; justify-content: center;">
+                <div id="slider_rango" style="width: 90%;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; width:100%; margin-bottom: 8px;">
+                <span id="slider_ini_val">6500</span>
+                <span id="slider_fin_val">6700</span>
+            </div>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+            <script>
+                // Slider doble usando noUiSlider
+                const sliderRango = document.getElementById('slider_rango');
+                const iniVal = document.getElementById('slider_ini_val');
+                const finVal = document.getElementById('slider_fin_val');
+                const rangoIniInput = document.getElementById('rango_ini');
+                const rangoFinInput = document.getElementById('rango_fin');
+                const minWavelength = parseInt('{{ min_wavelength|default(6500) }}');
+                const maxWavelength = parseInt('{{ max_wavelength|default(6700) }}');
+                const archivoInput = document.getElementById('archivo');
+                const form = document.getElementById('sonificarForm');
+                const sonificarBtn = document.getElementById('sonificarBtn');
+
+                function resetRangosAlSubirArchivo() {
+                    rangoIniInput.value = minWavelength;
+                    rangoFinInput.value = maxWavelength;
+                    if(sliderRango && sliderRango.noUiSlider) {
+                        sliderRango.noUiSlider.set([minWavelength, maxWavelength]);
+                    }
+                    iniVal.textContent = minWavelength;
+                    finVal.textContent = maxWavelength;
+                }
+
+                if (sliderRango.noUiSlider) {
+                    sliderRango.noUiSlider.destroy();
+                }
+                noUiSlider.create(sliderRango, {
+                    start: [parseInt(rangoIniInput.value), parseInt(rangoFinInput.value)],
+                    connect: true,
+                    step: 1,
+                    range: {
+                        'min': minWavelength,
+                        'max': maxWavelength
+                    },
+                    format: {
+                        to: function (value) { return Math.round(value); },
+                        from: function (value) { return Number(value); }
+                    }
+                });
+                sliderRango.noUiSlider.on('update', function(values, handle) {
+                    iniVal.textContent = values[0];
+                    finVal.textContent = values[1];
+                    rangoIniInput.value = values[0];
+                    rangoFinInput.value = values[1];
+                });
+                rangoIniInput.addEventListener('input', function() {
+                    let ini = parseInt(rangoIniInput.value);
+                    let fin = parseInt(rangoFinInput.value);
+                    if(ini > fin) { ini = fin; rangoIniInput.value = ini; }
+                    sliderRango.noUiSlider.set([ini, null]);
+                });
+                rangoFinInput.addEventListener('input', function() {
+                    let ini = parseInt(rangoIniInput.value);
+                    let fin = parseInt(rangoFinInput.value);
+                    if(fin < ini) { fin = ini; rangoFinInput.value = fin; }
+                    sliderRango.noUiSlider.set([null, fin]);
+                });
+
+                // Permitir cambiar rangos y sonificar sin recargar archivo
+                form.addEventListener('submit', function(e) {
+                    if (!archivoInput.value && !archivoInput.hasAttribute('data-file-loaded')) {
+                        // Si no hay archivo cargado, dejar que el formulario se envíe normalmente
+                    } else {
+                        e.preventDefault();
+                        const formData = new FormData(form);
+                        if (!archivoInput.value && archivoInput.hasAttribute('data-file-loaded')) {
+                            formData.delete('archivo');
+                        }
+                        fetch('/', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.text())
+                        .then(html => {
+                            document.open();
+                            document.write(html);
+                            document.close();
+                        });
+                    }
+                });
+
+                archivoInput.addEventListener('change', function() {
+                    if (archivoInput.value) {
+                        archivoInput.setAttribute('data-file-loaded', 'true');
+                        resetRangosAlSubirArchivo();
+                    } else {
+                        archivoInput.removeAttribute('data-file-loaded');
+                    }
+                });
+
+                // Al enviar el formulario, si el archivo ya está cargado, no volver a pedirlo
+                form.addEventListener('submit', function(e) {
+                    if (!archivoInput.value && archivoInput.hasAttribute('data-file-loaded')) {
+                        // No hay archivo nuevo, pero ya hay uno cargado: no eliminar el archivo
+                        // El backend usará el archivo de sesión
+                    }
+                });
+
+                // Al subir un nuevo archivo, limpiar el estado anterior
+                archivoInput.addEventListener('click', function() {
+                    archivoInput.value = '';
+                    archivoInput.removeAttribute('data-file-loaded');
+                });
+            </script>
+            <div class="audio-controls">
+                <div>
+                    <input type="range" id="vol_emision" min="0" max="1" step="0.01" value="1" style="width: 120px;">
+                    <label for="vol_emision">Volumen Emisión</label>
+                </div>
+                <div>
+                    <input type="range" id="vol_absorcion" min="0" max="1" step="0.01" value="1" style="width: 120px;">
+                    <label for="vol_absorcion">Volumen Absorción</label>
+                </div>
+            </div>
+            <div style="margin-top: 18px;">
+                {% if archivo_completo %}
+                <label style="font-weight: bold;">Reproducir Espectro Completo:</label>
+                <!-- <audio id="audio_completo" controls style="margin-bottom: 8px;">
+                    <source src="{{ url_for('descargar', nombre_archivo=archivo_completo) }}" type="audio/midi">
+                    Tu navegador no soporta la reproducción de audio.
+                </audio> -->
+                <div style="color: #b71c1c; font-size: 0.95em; margin-bottom: 8px;">La reproducción directa de archivos MIDI no es soportada por la mayoría de los navegadores. Usa el reproductor MIDI de abajo.</div>
+                {% endif %}
+            </div>
+            <div class="midi-player">
+                <button id="playBtn" disabled>Reproducir MIDI</button>
+                <select id="midiSelect">
+                    {% if archivo_completo %}<option value="{{ url_for('descargar', nombre_archivo=archivo_completo) }}">Completo</option>{% endif %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+    <script>
+    // --- Reproductor universal de MIDI ---
+    async function reproducirMIDIUniversal(midiBuffer) {
+        try {
+            const midi = new Midi(midiBuffer);
+            await Tone.start();
+            const now = Tone.now();
+            const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+            midi.tracks.forEach(track => {
+                track.notes.forEach(note => {
+                    synth.triggerAttackRelease(note.name, note.duration, now + note.time, note.velocity);
+                });
+            });
+        } catch (e) {
+            alert('No se pudo reproducir el MIDI en este navegador.');
+        }
+    }
+    // --- Sobrescribir el evento de reproducción para usar el reproductor universal ---
+    playBtn && playBtn.addEventListener('click', async () => {
+        if (!midiBuffer) return;
+        barra.style.display = 'block';
+        const instEmision = instrumentoEmision ? instrumentoEmision.value : "midi_crudo";
+        const instAbsorcion = instrumentoAbsorcion ? instrumentoAbsorcion.value : "midi_crudo";
+        if(instEmision === "midi_crudo" || instAbsorcion === "midi_crudo"){
+            await reproducirMIDIUniversal(midiBuffer);
+            barra.style.display = 'none';
+            return;
+        }
+        limpiarSynths();
+        synths[0] = getSynthForInstrument(instEmision);
+        synths[1] = getSynthForInstrument(instAbsorcion);
+        setChannelVolume(0, channelVolumes[0]);
+        setChannelVolume(1, channelVolumes[1]);
+        let now = Tone.now();
+        midiNotes.forEach(n => {
+            synths[n.channel].triggerAttackRelease(n.note, n.duration, now + n.time);
+        });
+        if (barraAnim) cancelAnimationFrame(barraAnim);
+        const svg = svgObject && svgObject.contentDocument && svgObject.contentDocument.documentElement;
+        let svgWidth = svg ? svg.getBoundingClientRect().width : 600;
+        let barraWidth = svgWidth;
+        let barraElem = barra;
+    });
+    </script>
+    </body>
+    </html>
+<form method="post" enctype="multipart/form-data" id="sonificarForm">
+    {% if not archivo_emision and not archivo_absorcion and not archivo_completo %}
+        <!-- SOLO OPCIONES BÁSICAS AL INICIO -->
+        <input type="file" name="archivo" id="archivo" required>
+        <label for="tipo_galaxia">Tipo de galaxia:</label>
+        <select name="tipo_galaxia" id="tipo_galaxia" required>
+            <option value="Elíptica">Elíptica</option>
+            <option value="Espiral">Espiral</option>
+        </select>
+        <div class="botones">
+            <button type="submit" id="sonificarBtn">Sonificar</button>
+        </div>
+    {% else %}
+        <!-- OPCIONES AVANZADAS DESPUÉS DE LA PRIMERA SONIFICACIÓN -->
+        <label for="rango_ini">Rango inicial (Å):</label>
+        <input type="number" name="rango_ini" id="rango_ini" value="{{ min_wavelength }}" min="{{ min_wavelength }}" max="{{ max_wavelength }}">
+        <label for="rango_fin">Rango final (Å):</label>
+        <input type="number" name="rango_fin" id="rango_fin" value="{{ max_wavelength }}" min="{{ min_wavelength }}" max="{{ max_wavelength }}">
+        <label for="tempo">Tempo (BPM):</label>
+        <input type="number" name="tempo" id="tempo" value="200">
+        <label for="duracion">Duración de nota (s):</label>
+        <input type="number" step="0.01" name="duracion" id="duracion" value="0.5">
+        <label for="instrumento_emision">Instrumento Emisión (General MIDI):</label>
+        <select name="instrumento_emision" id="instrumento_emision">
+            <option value="midi_crudo" selected>MIDI crudo</option>
+            <option value="24">Guitarra</option>
+            <option value="0">Piano</option>
+            <option value="40">Violín</option>
+            <option value="56">Trompeta</option>
+            <option value="73">Flauta</option>
+        </select>
+        <label for="instrumento_absorcion">Instrumento Absorción (General MIDI):</label>
+        <select name="instrumento_absorcion" id="instrumento_absorcion">
+            <option value="midi_crudo" selected>MIDI crudo</option>
+            <option value="24">Guitarra</option>
+            <option value="0">Piano</option>
+            <option value="40">Violín</option>
+            <option value="56">Trompeta</option>
+            <option value="73">Flauta</option>
+        </select>
+        <div class="botones">
+            <button type="submit" id="sonificarBtnAvanzado">Sonificar con nuevos parámetros</button>
+        </div>
+    {% endif %}
+</form>
+{% if resultado %}
+    <div class="resultado">{{ resultado }}</div>
+{% endif %}
+{% if tipo_galaxia %}
+    <div class="resultado">Tipo de galaxia detectado: <b>{{ tipo_galaxia }}</b></div>
+{% endif %}
+{% if archivo_emision or archivo_absorcion or archivo_completo %}
+<div class="descargas">
+    {% if archivo_emision %}
+        <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_emision) }}" target="_blank">Descargar MIDI Emisión</a>
+    {% endif %}
+    {% if archivo_absorcion %}
+        <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_absorcion) }}" target="_blank">Descargar MIDI Absorción</a>
+    {% endif %}
+    {% if archivo_completo %}
+        <a class="descargar" href="{{ url_for('descargar', nombre_archivo=archivo_completo) }}" target="_blank">Descargar MIDI Completo</a>
+        <br>
+        <!-- Eliminado el reproductor de audio nativo para MIDI -->
+    {% endif %}
+</div>
+{% endif %}
+</div>
+<div class="graph-col">
+    {% if archivo_emision or archivo_absorcion or archivo_completo %}
+    <div class="svg-container">
+        {% if resultado and not tipo_galaxia %}
+            <div class="resultado">{{ resultado }}</div>
+        {% else %}
+            <object id="svgObject" type="image/svg+xml" data="{{ url_for('mostrar_svg') }}" width="100%" height="440"></object>
+            <div id="barra" class="barra-reproduccion" style="display:none;"></div>
+        {% endif %}
+    </div>
+    <!-- Barra de selección de rango de sonificación -->
+    <div id="region-slider-container" style="width:100%; margin: 10px 0 18px 0; display: flex; justify-content: center;">
+        <div id="slider_rango" style="width: 90%;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; width:100%; margin-bottom: 8px;">
+        <span id="slider_ini_val">6500</span>
+        <span id="slider_fin_val">6700</span>
+    </div>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+    <script>
+        // Slider doble usando noUiSlider
+        const sliderRango = document.getElementById('slider_rango');
+        const iniVal = document.getElementById('slider_ini_val');
+        const finVal = document.getElementById('slider_fin_val');
+        const rangoIniInput = document.getElementById('rango_ini');
+        const rangoFinInput = document.getElementById('rango_fin');
+        const minWavelength = parseInt('{{ min_wavelength|default(6500) }}');
+        const maxWavelength = parseInt('{{ max_wavelength|default(6700) }}');
+        const archivoInput = document.getElementById('archivo');
+        const form = document.getElementById('sonificarForm');
+        const sonificarBtn = document.getElementById('sonificarBtn');
+
+        function resetRangosAlSubirArchivo() {
+            rangoIniInput.value = minWavelength;
+            rangoFinInput.value = maxWavelength;
+            if(sliderRango && sliderRango.noUiSlider) {
+                sliderRango.noUiSlider.set([minWavelength, maxWavelength]);
+            }
+            iniVal.textContent = minWavelength;
+            finVal.textContent = maxWavelength;
+        }
+
+        if (sliderRango.noUiSlider) {
+            sliderRango.noUiSlider.destroy();
+        }
+        noUiSlider.create(sliderRango, {
+            start: [parseInt(rangoIniInput.value), parseInt(rangoFinInput.value)],
+            connect: true,
+            step: 1,
+            range: {
+                'min': minWavelength,
+                'max': maxWavelength
+            },
+            format: {
+                to: function (value) { return Math.round(value); },
+                from: function (value) { return Number(value); }
+            }
+        });
+        sliderRango.noUiSlider.on('update', function(values, handle) {
+            iniVal.textContent = values[0];
+            finVal.textContent = values[1];
+            rangoIniInput.value = values[0];
+            rangoFinInput.value = values[1];
+        });
+        rangoIniInput.addEventListener('input', function() {
+            let ini = parseInt(rangoIniInput.value);
+            let fin = parseInt(rangoFinInput.value);
+            if(ini > fin) { ini = fin; rangoIniInput.value = ini; }
+            sliderRango.noUiSlider.set([ini, null]);
+        });
+        rangoFinInput.addEventListener('input', function() {
+            let ini = parseInt(rangoIniInput.value);
+            let fin = parseInt(rangoFinInput.value);
+            if(fin < ini) { fin = ini; rangoFinInput.value = fin; }
+            sliderRango.noUiSlider.set([null, fin]);
+        });
+
+        // Permitir cambiar rangos y sonificar sin recargar archivo
+        form.addEventListener('submit', function(e) {
+            if (!archivoInput.value && !archivoInput.hasAttribute('data-file-loaded')) {
+                // Si no hay archivo cargado, dejar que el formulario se envíe normalmente
+            } else {
+                e.preventDefault();
+                const formData = new FormData(form);
+                if (!archivoInput.value && archivoInput.hasAttribute('data-file-loaded')) {
+                    formData.delete('archivo');
+                }
+                fetch('/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                });
+            }
+        });
+
+        archivoInput.addEventListener('change', function() {
+            if (archivoInput.value) {
+                archivoInput.setAttribute('data-file-loaded', 'true');
+                resetRangosAlSubirArchivo();
+            } else {
+                archivoInput.removeAttribute('data-file-loaded');
+            }
+        });
+
+        // Al enviar el formulario, si el archivo ya está cargado, no volver a pedirlo
+        form.addEventListener('submit', function(e) {
+            if (!archivoInput.value && archivoInput.hasAttribute('data-file-loaded')) {
+                // No hay archivo nuevo, pero ya hay uno cargado: no eliminar el archivo
+                // El backend usará el archivo de sesión
+            }
+        });
+
+        // Al subir un nuevo archivo, limpiar el estado anterior
+        archivoInput.addEventListener('click', function() {
+            archivoInput.value = '';
+            archivoInput.removeAttribute('data-file-loaded');
+        });
+    </script>
+    <div class="audio-controls">
+        <div>
+            <input type="range" id="vol_emision" min="0" max="1" step="0.01" value="1" style="width: 120px;">
+            <label for="vol_emision">Volumen Emisión</label>
+        </div>
+        <div>
+            <input type="range" id="vol_absorcion" min="0" max="1" step="0.01" value="1" style="width: 120px;">
+            <label for="vol_absorcion">Volumen Absorción</label>
+        </div>
+    </div>
+    <div style="margin-top: 18px;">
+        {% if archivo_completo %}
+        <label style="font-weight: bold;">Reproducir Espectro Completo:</label>
+        <!-- <audio id="audio_completo" controls style="margin-bottom: 8px;">
+            <source src="{{ url_for('descargar', nombre_archivo=archivo_completo) }}" type="audio/midi">
+            Tu navegador no soporta la reproducción de audio.
+        </audio> -->
+        <div style="color: #b71c1c; font-size: 0.95em; margin-bottom: 8px;">La reproducción directa de archivos MIDI no es soportada por la mayoría de los navegadores. Usa el reproductor MIDI de abajo.</div>
+        {% endif %}
+    </div>
+    <div class="midi-player">
+        <button id="playBtn" disabled>Reproducir MIDI</button>
+        <select id="midiSelect">
+            {% if archivo_completo %}<option value="{{ url_for('descargar', nombre_archivo=archivo_completo) }}">Completo</option>{% endif %}
+        </select>
+    </div>
+    {% endif %}
+</div>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+<script>
+// --- Reproductor universal de MIDI ---
+async function reproducirMIDIUniversal(midiBuffer) {
+    try {
+        const midi = new Midi(midiBuffer);
+        await Tone.start();
+        const now = Tone.now();
+        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        midi.tracks.forEach(track => {
+            track.notes.forEach(note => {
+                synth.triggerAttackRelease(note.name, note.duration, now + note.time, note.velocity);
+            });
+        });
+    } catch (e) {
+        alert('No se pudo reproducir el MIDI en este navegador.');
+    }
+}
+// --- Sobrescribir el evento de reproducción para usar el reproductor universal ---
+playBtn && playBtn.addEventListener('click', async () => {
+    if (!midiBuffer) return;
+    barra.style.display = 'block';
+    const instEmision = instrumentoEmision ? instrumentoEmision.value : "midi_crudo";
+    const instAbsorcion = instrumentoAbsorcion ? instrumentoAbsorcion.value : "midi_crudo";
+    if(instEmision === "midi_crudo" || instAbsorcion === "midi_crudo"){
+        await reproducirMIDIUniversal(midiBuffer);
+        barra.style.display = 'none';
+        return;
+    }
+    limpiarSynths();
+    synths[0] = getSynthForInstrument(instEmision);
+    synths[1] = getSynthForInstrument(instAbsorcion);
+    setChannelVolume(0, channelVolumes[0]);
+    setChannelVolume(1, channelVolumes[1]);
+    let now = Tone.now();
+    midiNotes.forEach(n => {
+        synths[n.channel].triggerAttackRelease(n.note, n.duration, now + n.time);
+    });
+    if (barraAnim) cancelAnimationFrame(barraAnim);
+    const svg = svgObject && svgObject.contentDocument && svgObject.contentDocument.documentElement;
+    let svgWidth = svg ? svg.getBoundingClientRect().width : 600;
+    let barraWidth = svgWidth;
+    let barraElem = barra;
+});
+</script>
+</body>
+</html>

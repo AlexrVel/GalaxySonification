@@ -1,0 +1,10 @@
+streamlit~=1.45.0
+pydub~=0.25.1
+midi2audio~=0.1.1
+midiutil~=1.2.1
+numpy~=2.2.5
+matplotlib~=3.10.1
+scipy~=1.15.2
+
+pandas~=2.2.3
+plotly~=6.0.1
