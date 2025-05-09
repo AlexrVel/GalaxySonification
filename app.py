@@ -13,7 +13,7 @@ DATA_DIR = "data"
 MIDI_OUTPUT = "output.mid"
 WAV_OUTPUT = "output.wav"
 SOUNDFONT_PATH = "FluidR3_GM.sf2"
-//SOUNDFONT_PATH = "GeneralUser-GS.sf2"
+#SOUNDFONT_PATH = "GeneralUser-GS.sf2"
 
 # Streamlit le crea webs sin complique y las llama desde python
 st.set_page_config(page_title="Sonificación Galáctica", layout="centered")
