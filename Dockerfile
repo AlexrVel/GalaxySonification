@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -7,8 +7,6 @@ RUN apt-get update && \
     soundfont-general-midi \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-
 
 WORKDIR /app
 
