@@ -6,7 +6,7 @@ from src.sound_mapper import map_values_to_midi_notes, map_to_velocity
 from src.midi_generator import create_midi_file
 import plotly.graph_objects as go
 from src.midi_generator import convert_midi_to_wav
-from funciones import sonificar_galaxia
+from funciones import sonificar_galaxia, cargar_datos
 
 # Constantes locales
 DATA_DIR = "data"
@@ -20,16 +20,60 @@ st.set_page_config(page_title="Sonificación Galáctica", layout="centered")
 st.title("🌌 Sonificación de Galaxias")
 st.write("Convierte datos astronómicos en música 🎶 usando MIDI")
 
-# Paso 1: Selección de galaxia
-galaxias = list_available_galaxies(DATA_DIR)
-galaxia = st.selectbox("Selecciona una galaxia:", galaxias)
+# Paso 1: Selección de galaxia y carga de archivo en columnas
+col_galaxia, col_upload = st.columns([2, 1])
+
+with col_upload:
+    uploaded_file = st.file_uploader("O sube tu propio espectro (.txt)", type=["txt"])
+
+with col_galaxia:
+    galaxias = list_available_galaxies(DATA_DIR)
+    # Si hay archivo subido, agregar su nombre a la lista de galaxias (si no está)
+    if uploaded_file is not None:
+        nombre_txt_usuario = uploaded_file.name
+        if nombre_txt_usuario not in galaxias:
+            galaxias = [nombre_txt_usuario] + galaxias  # Lo pone al inicio
+        galaxia_default = nombre_txt_usuario
+    else:
+        galaxia_default = galaxias[0] if galaxias else None
+
+    galaxia = st.selectbox("Selecciona una galaxia:", galaxias, index=galaxias.index(galaxia_default) if galaxia_default in galaxias else 0)
+
+# Diccionario de descripciones (puedes ampliarlo con tus propias descripciones)
+descripciones_galaxias = {
+    "NGC_6643.txt": "NGC 6643 es una galaxia espiral ubicada en la constelación de Draco.",
+    "NGC_1300.txt": "NGC 1300 es una galaxia espiral barrada situada en la constelación de Eridanus.",
+    # Agrega aquí más descripciones según tus galaxias
+}
+
+# Mostrar descripción e imagen si existe una galaxia seleccionada
+if galaxia:
+    descripcion = descripciones_galaxias.get(galaxia, "Sin descripción disponible para esta galaxia.")
+    st.markdown(f"**Descripción:** {descripcion}")
+    # Ruta de la imagen (debe estar en la carpeta data y llamarse igual que el archivo de la galaxia pero con .png)
+    imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.png'))
+    if os.path.exists(imagen_path):
+        st.image(imagen_path, caption=f"Imagen de {galaxia}", use_column_width=True)
+    else:
+        st.info("No hay imagen disponible para esta galaxia.")
 
 # Nuevo: Menú para elegir el tipo de galaxia
 tipo_galaxia = st.radio("Selecciona el tipo de galaxia para la sonificación:", ("Espiral", "Elíptica"))
 
-if galaxia:
+if uploaded_file is not None:
+    # Guardar el archivo subido temporalmente
+    temp_path = os.path.join(DATA_DIR, "espectro_usuario.txt")
+    with open(temp_path, "wb") as f:
+        f.write(uploaded_file.read())
+    file_path = temp_path
+    galaxia = "espectro_usuario.txt"
+    nombre_base = os.path.splitext(uploaded_file.name)[0]  # Usar nombre real del archivo subido
+elif galaxia:
     file_path = os.path.join(DATA_DIR, galaxia)
-    data = load_galaxy_data(file_path)
+    nombre_base = os.path.splitext(galaxia)[0]  # Usar nombre de la galaxia
+
+if galaxia and file_path:
+    data = cargar_datos(file_path)
 
     if data is not None:
         # Paso 3: Generar MIDI (move this block up if needed)
@@ -48,8 +92,8 @@ if galaxia:
             index=2
         )
         duracion_nota = figura[1]
-        min_wavelength = float(data[:, 0].min())
-        max_wavelength = float(data[:, 0].max())
+        min_wavelength = float(data.iloc[:, 0].min())
+        max_wavelength = float(data.iloc[:, 0].max())
         rango_onda = st.slider(
             "Rango de longitudes de onda a sonificar",
             min_value=min_wavelength,
@@ -61,7 +105,7 @@ if galaxia:
         # Paso 2: Visualización
         st.subheader("🔭 Visualización de datos")
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data[:, 0], y=data[:, 1], mode='lines', name=galaxia))
+        fig.add_trace(go.Scatter(x=data.iloc[:, 0], y=data.iloc[:, 1], mode='lines', name=galaxia))
         fig.add_vrect(
             x0=rango_onda[0], x1=rango_onda[1],
             fillcolor="orange", opacity=0.3,
@@ -69,8 +113,8 @@ if galaxia:
             annotation_text="Región sonificada", annotation_position="top left"
         )
         # Agregar líneas horizontales para las notas MIDI seleccionadas
-        min_intensity = float(data[:, 1].min())
-        max_intensity = float(data[:, 1].max())
+        min_intensity = float(data.iloc[:, 1].min())
+        max_intensity = float(data.iloc[:, 1].max())
         # Determinar el número de notas igual que en la sonificación
         num_notes = scale_range[1] - scale_range[0] + 1
         step_size = (max_intensity - min_intensity) / num_notes
@@ -84,9 +128,8 @@ if galaxia:
                 annotation_text=f"Umbral nota {i+scale_range[0]}",
                 annotation_position="right"
             )
-        fig.update_layout(title=f"Datos de {galaxia}", xaxis_title="X", yaxis_title="Y")
+        fig.update_layout(title=f"Datos de {nombre_base}", xaxis_title="X", yaxis_title="Y")
         st.plotly_chart(fig)
-
         # Opciones de sonificación e instrumentos (debajo de la gráfica)
         st.subheader("🎼 Opciones de Sonificación")
         instrumentos_midi = {
@@ -110,6 +153,20 @@ if galaxia:
             index=1
         )
 
+        # Selección de escala musical
+        escala_opciones = {
+            "Pentatónica de Am": "pentatonica_am",
+            "Armónica de Am": "armonica_am",
+            "Mayor de A": "mayor_a",
+            "Menor de A": "menor_a"
+        }
+        escala_seleccionada = st.selectbox(
+            "Selecciona la escala musical:",
+            list(escala_opciones.keys()),
+            index=0
+        )
+        midi_generado = False  # <-- Añade esta línea antes del botón
+
         if st.button("🎹 Generar MIDI"):
             # Lógica unificada usando la función nueva
             nombre_base = os.path.splitext(galaxia)[0]
@@ -131,7 +188,8 @@ if galaxia:
                 salida_midi_completo=salida_midi_completo,
                 instrumento_emision=instrumentos_midi[instrumento_emision],
                 instrumento_absorcion=instrumentos_midi[instrumento_absorcion],
-                nombre_archivo=nombre_base
+                nombre_archivo=nombre_base,
+                escala=escala_opciones[escala_seleccionada]  # <-- Nuevo parámetro
             )
             # Convertir los MIDIs a WAV para previsualización
             try:

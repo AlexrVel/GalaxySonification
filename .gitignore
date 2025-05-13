@@ -1,0 +1,4 @@
+output/
+*.wav
+*.mid
+*.midi

@@ -67,6 +67,7 @@ TesisAlex/
 
 ---
 
+# 🌌 Sonificación de Galaxias
 ## 🚀 Ejecutar la aplicación
 
 Desde la raíz del proyecto, corre:

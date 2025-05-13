@@ -8,6 +8,9 @@ from midi2audio import FluidSynth
 import subprocess
 from pydub import AudioSegment
 
+import os
+from src.data_loader import load_galaxy_data
+
 def cargar_datos(archivo):
         # Cargar datos
     with open(archivo, 'r') as f:
@@ -151,10 +154,15 @@ def sonificar_espirales(archivo, rango_onda=(6500, 6700), tempo=200, duracion_no
     # Mapeo de colores para cada nota
     note_colors = {
         "A": "blue",
+        "B": "cyan",
         "C": "green",
+        "C#": "lime",
         "D": "orange",
         "E": "purple",
-        "G": "red"
+        "F": "magenta",
+        "F#": "yellow",
+        "G": "red",
+        "G#": "brown"
     }
 
     fig, axs = plt.subplots(2, 1, figsize=(12, 12), gridspec_kw={'height_ratios': [1, 1]})
@@ -191,8 +199,7 @@ def sonificar_espirales(archivo, rango_onda=(6500, 6700), tempo=200, duracion_no
     # Agregar líneas de colores para cada nota
     for i, pos in enumerate(horizontal_lines):
         note_name, _ = full_scale[i]
-        color = note_colors[note_name]  # Seleccionar color basado en la nota
-        
+        color = note_colors.get(note_name, "black")  # Usa negro si la nota no está en el diccionario
         axs[1].axhline(y=pos, linestyle='--', color=color, alpha=0.7, linewidth=1)
         axs[1].text(max(wavelengths) + 5, pos, note_name, color=color, fontsize=10, verticalalignment='center')
     
@@ -226,7 +233,8 @@ def sonificar_galaxia(
     rango_central=(0.95, 1.05),
     instrumento_emision=0,
     instrumento_absorcion=24,
-    nombre_archivo=None
+    nombre_archivo=None,
+    escala="pentatonica_am"  # <-- Nuevo parámetro
 ):
     # Cargar datos
     datos = cargar_datos(archivo)
@@ -246,15 +254,25 @@ def sonificar_galaxia(
     archivo_nombre = os.path.splitext(os.path.basename(archivo))[0]
 
     # Definir nombres de salida personalizados si no se pasan explícitamente
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+
     if salida_midi_emision is None:
-        salida_midi_emision = f"{archivo_nombre}_emisión.mid"
+        salida_midi_emision = os.path.join(output_dir, f"{archivo_nombre}_emisión.mid")
     if salida_midi_absorcion is None:
-        salida_midi_absorcion = f"{archivo_nombre}_absorción.mid"
+        salida_midi_absorcion = os.path.join(output_dir, f"{archivo_nombre}_absorción.mid")
     if salida_midi_completo is None:
-        salida_midi_completo = f"{archivo_nombre}.mid"
+        salida_midi_completo = os.path.join(output_dir, f"{archivo_nombre}.mid")
 
     # Definir la escala pentatónica con nombres de notas
-    pentatonic_scale = [("A", 69), ("C", 72), ("D", 74), ("E", 76), ("G", 79)]
+    # Definir las escalas
+    escalas = {
+        "pentatonica_am": [("A", 69), ("C", 72), ("D", 74), ("E", 76), ("G", 79)],
+        "armonica_am": [("A", 69), ("B", 71), ("C", 72), ("D", 74), ("E", 76), ("F", 77), ("G#", 80)],
+        "mayor_a": [("A", 69), ("B", 71), ("C#", 73), ("D", 74), ("E", 76), ("F#", 78), ("G#", 80)],
+        "menor_a": [("A", 69), ("B", 71), ("C", 72), ("D", 74), ("E", 76), ("F", 77), ("G", 79)]
+    }
+    pentatonic_scale = escalas.get(escala, escalas["pentatonica_am"])
     octaves = [-24, -12, 0, 12, 24, 36, 48]
     full_scale = [(name, note + octave) for octave in octaves for name, note in pentatonic_scale]
     num_notes = len(full_scale)
@@ -263,7 +281,7 @@ def sonificar_galaxia(
     if tipo_galaxia.lower() == "espiral":
         step_size = (max_intensity - min_intensity) / 8  # 8 divisiones para espirales
     elif tipo_galaxia.lower() == "elíptica":
-        step_size = (max_intensity - min_intensity) / 2  # 2 divisiones para elípticas
+        step_size = (max_intensity - min_intensity) / 8  # 2 divisiones para elípticas
     else:
         step_size = (max_intensity - min_intensity) / num_notes  # por defecto
 
@@ -274,6 +292,11 @@ def sonificar_galaxia(
     midi_completo = MIDIFile(2)
     midi_completo.addTempo(0, 0, tempo)
     midi_completo.addTempo(1, 0, tempo)
+    # --- AÑADE ESTAS LÍNEAS PARA ASIGNAR INSTRUMENTOS ---
+    midi_emision.addProgramChange(0, 0, 0, instrumento_emision)
+    midi_absorcion.addProgramChange(0, 0, 0, instrumento_absorcion)
+    midi_completo.addProgramChange(0, 0, 0, instrumento_emision)      # Canal 0: emisión
+    midi_completo.addProgramChange(1, 1, 0, instrumento_absorcion)    # Canal 1: absorción
     puntos_sonificados = []
     for i, intensity in enumerate(intensities):
         index = int((intensity - min_intensity) / step_size)
@@ -301,10 +324,15 @@ def sonificar_galaxia(
     # Mapeo de colores para cada nota
     note_colors = {
         "A": "blue",
+        "B": "cyan",
         "C": "green",
+        "C#": "lime",
         "D": "orange",
         "E": "purple",
-        "G": "red"
+        "F": "magenta",
+        "F#": "yellow",
+        "G": "red",
+        "G#": "brown"
     }
 
     fig, axs = plt.subplots(2, 1, figsize=(12, 12), gridspec_kw={'height_ratios': [1, 1]})
@@ -341,8 +369,7 @@ def sonificar_galaxia(
     # Agregar líneas de colores para cada nota
     for i, pos in enumerate(horizontal_lines):
         note_name, _ = full_scale[i]
-        color = note_colors[note_name]  # Seleccionar color basado en la nota
-        
+        color = note_colors.get(note_name, "black")  # Usa negro si la nota no está en el diccionario
         axs[1].axhline(y=pos, linestyle='--', color=color, alpha=0.7, linewidth=1)
         axs[1].text(max(wavelengths) + 5, pos, note_name, color=color, fontsize=10, verticalalignment='center')
     
