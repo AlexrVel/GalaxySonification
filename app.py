@@ -57,6 +57,19 @@ descripciones_galaxias = {
         "Una de estas estructuras, visible en la parte inferior derecha, mide unos 3,700 años luz de longitud.\n"
         "Información y figura tomadas de https://science.nasa.gov/asset/hubble/starburst-galaxy-ngc-1569/"
     ),
+    "NGC_2276.txt": (
+        "NGC 2276 es una galaxia espiral en interacción. En la mayoría de las galaxias espirales, el centro suele mostrar un núcleo brillante compuesto por estrellas más viejas de color amarillento. "
+        "Sin embargo, en el caso de NGC 2276, ese núcleo parece estar desplazado hacia la parte superior izquierda. "
+        "Esto se debe a que una galaxia vecina situada a la derecha de NGC 2276 (NGC 2300, que no aparece en la imagen) la está atrayendo gravitacionalmente. "
+        "Esa fuerza está tirando del disco de estrellas azules en un lado, distorsionando la forma típica de \"huevo frito\" que suelen tener estas galaxias. "
+        "Este tipo de “tira y afloja” entre galaxias cercanas no es raro en el universo. Sin embargo, al igual que los copos de nieve, ningún encuentro cercano entre galaxias es exactamente igual a otro. "
+        "Además, en el borde superior izquierdo de NGC 2276 se forma un brazo azul brillante, compuesto por estrellas jóvenes y masivas de corta vida. "
+        "Estas estrellas marcan una región de intensa formación estelar, que pudo haber sido provocada por una colisión anterior con una galaxia enana. "
+        "También es posible que se deba a que NGC 2276 se esté desplazando a través del gas sobrecalentado que se encuentra entre galaxias en los cúmulos galácticos. "
+        "Al atravesar este gas, se comprime y colapsa, dando lugar al nacimiento masivo de nuevas estrellas. "
+        "La galaxia espiral NGC 2276 se encuentra a unos 120 millones de años luz, en la constelación boreal de Cefeo. "
+        "Información y figura tomadas de https://science.nasa.gov/asset/hubble/ngc-2276/"
+    ),
     # Agrega aquí más descripciones según tus galaxias
 }
 
