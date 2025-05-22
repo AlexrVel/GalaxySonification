@@ -271,3 +271,39 @@ if galaxia and file_path:
                     with open(archivo_wav, "rb") as f:
                         st.download_button(f"⬇️ Descargar WAV {label}", f, file_name=archivo_wav)
             st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
+# Cambia el layout a wide
+st.set_page_config(page_title="Sonificación Galáctica", layout="wide")
+
+# Paso 2: Visualización y descargas en columnas
+st.subheader("🔭 Visualización de datos")
+col_grafica, col_descargas = st.columns([3, 1])  # 3:1 para que la gráfica sea más ancha
+
+with col_grafica:
+    st.plotly_chart(fig, use_container_width=True)
+
+with col_descargas:
+    if midi_generado:
+        from pydub import AudioSegment
+        wav_emision = f"{os.path.splitext(galaxia)[0]}_emision.wav"
+        wav_absorcion = f"{os.path.splitext(galaxia)[0]}_absorcion.wav"
+        wav_mix = f"{os.path.splitext(galaxia)[0]}_mix_preview.wav"
+        if os.path.exists(wav_emision) and os.path.exists(wav_absorcion):
+            audio_emision = AudioSegment.from_wav(wav_emision)
+            audio_absorcion = AudioSegment.from_wav(wav_absorcion)
+            min_len = min(len(audio_emision), len(audio_absorcion))
+            audio_emision = audio_emision[:min_len]
+            audio_absorcion = audio_absorcion[:min_len]
+            audio_mix = audio_emision.overlay(audio_absorcion)
+            audio_mix.export(wav_mix, format="wav")
+            st.subheader("🔊 Previsualizar sonido")
+            st.audio(wav_mix, format="audio/wav")
+        for archivo_midi, archivo_wav, label in [
+            (f"{os.path.splitext(galaxia)[0]}_emision.mid", f"{os.path.splitext(galaxia)[0]}_emision.wav", "Emisión"),
+            (f"{os.path.splitext(galaxia)[0]}_absorcion.mid", f"{os.path.splitext(galaxia)[0]}_absorcion.wav", "Absorción"),
+            (f"{os.path.splitext(galaxia)[0]}_completo.mid", f"{os.path.splitext(galaxia)[0]}_completo.wav", "Completo"),
+        ]:
+            if os.path.exists(archivo_midi):
+                st.download_button(f"⬇️ MIDI {label}", open(archivo_midi, "rb"), file_name=archivo_midi, key=archivo_midi)
+            if os.path.exists(archivo_wav):
+                st.download_button(f"⬇️ WAV {label}", open(archivo_wav, "rb"), file_name=archivo_wav, key=archivo_wav)
+        st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
