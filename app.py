@@ -41,20 +41,22 @@ with col_galaxia:
 
 # Diccionario de descripciones (puedes ampliarlo con tus propias descripciones)
 descripciones_galaxias = {
-    "NGC_1569.txt": "NGC 1569 es una galaxia irregular enana ubicada en la constelación de la Jirafa a 11 millones años Luz. 
-    #La galaxia llamada NGC 1569 brilla intensamente gracias a la luz de millones de estrellas jóvenes que se han formado recientemente. 
-    #NGC 1569 está formando estrellas a un ritmo 100 veces más rápido que el observado en nuestra propia galaxia, la Vía Láctea. 
-    #Este ritmo frenético de formación estelar ha continuado casi sin pausa durante los últimos 100 millones de años.
-    #En el centro de la galaxia se encuentra un grupo de tres cúmulos estelares gigantes, cada uno con más de un millón de estrellas. 
-    #(Dos de estos cúmulos están tan cerca entre sí que parecen uno solo). Estos cúmulos están ubicados en una gran cavidad central, 
-    #cuyo gas ha sido expulsado por la acción de muchas estrellas masivas y jóvenes que ya explotaron como supernovas. 
-    #Estas explosiones también provocaron un flujo violento de gas y partículas que ha esculpido enormes estructuras de gas. 
-    #Una de estas estructuras, visible en la parte inferior derecha, mide unos 3,700 años luz de longitud.
-    #Información y figura tomadas de https://science.nasa.gov/asset/hubble/starburst-galaxy-ngc-1569/",
-    
     "NGC_6643.txt": "NGC 6643 es una galaxia espiral ubicada en la constelación de Draco.",
-   
     "NGC_1300.txt": "NGC 1300 es una galaxia espiral barrada situada en la constelación de Eridanus.",
+    "NGC_3370.txt": "NGC 3370 es una galaxia espiral en la constelación de Leo.",
+    "NGC_4881.txt": "NGC 4881 es una galaxia elíptica en el cúmulo de Coma.",
+    "NGC_1569.txt": (
+        "NGC 1569 es una galaxia irregular enana ubicada en la constelación de la Jirafa a 11 millones años luz.\n"
+        "La galaxia llamada NGC 1569 brilla intensamente gracias a la luz de millones de estrellas jóvenes que se han formado recientemente.\n"
+        "NGC 1569 está formando estrellas a un ritmo 100 veces más rápido que el observado en nuestra propia galaxia, la Vía Láctea.\n"
+        "Este ritmo frenético de formación estelar ha continuado casi sin pausa durante los últimos 100 millones de años.\n"
+        "En el centro de la galaxia se encuentra un grupo de tres cúmulos estelares gigantes, cada uno con más de un millón de estrellas. "
+        "(Dos de estos cúmulos están tan cerca entre sí que parecen uno solo). Estos cúmulos están ubicados en una gran cavidad central, "
+        "cuyo gas ha sido expulsado por la acción de muchas estrellas masivas y jóvenes que ya explotaron como supernovas.\n"
+        "Estas explosiones también provocaron un flujo violento de gas y partículas que ha esculpido enormes estructuras de gas. "
+        "Una de estas estructuras, visible en la parte inferior derecha, mide unos 3,700 años luz de longitud.\n"
+        "Información y figura tomadas de https://science.nasa.gov/asset/hubble/starburst-galaxy-ngc-1569/"
+    ),
     # Agrega aquí más descripciones según tus galaxias
 }
 
@@ -62,8 +64,10 @@ descripciones_galaxias = {
 if galaxia:
     descripcion = descripciones_galaxias.get(galaxia, "Sin descripción disponible para esta galaxia.")
     st.markdown(f"**Descripción:** {descripcion}")
-    # Ruta de la imagen (debe estar en la carpeta data y llamarse igual que el archivo de la galaxia pero con .png)
+    # Buscar imagen en .png o .jpg
     imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.png'))
+    if not os.path.exists(imagen_path):
+        imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.jpg'))
     if os.path.exists(imagen_path):
         st.image(imagen_path, caption=f"Imagen de {galaxia}", use_column_width=True)
     else:
