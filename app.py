@@ -42,15 +42,15 @@ with col_galaxia:
 # Diccionario de descripciones (puedes ampliarlo con tus propias descripciones)
 descripciones_galaxias = {
     "NGC_1569.txt": "NGC 1569 es una galaxia irregular enana ubicada en la constelación de la Jirafa a 11 millones años Luz. 
-    La galaxia llamada NGC 1569 brilla intensamente gracias a la luz de millones de estrellas jóvenes que se han formado recientemente. 
-    NGC 1569 está formando estrellas a un ritmo 100 veces más rápido que el observado en nuestra propia galaxia, la Vía Láctea. 
-    Este ritmo frenético de formación estelar ha continuado casi sin pausa durante los últimos 100 millones de años.
-    En el centro de la galaxia se encuentra un grupo de tres cúmulos estelares gigantes, cada uno con más de un millón de estrellas. 
-    (Dos de estos cúmulos están tan cerca entre sí que parecen uno solo). Estos cúmulos están ubicados en una gran cavidad central, 
-    cuyo gas ha sido expulsado por la acción de muchas estrellas masivas y jóvenes que ya explotaron como supernovas. 
-    Estas explosiones también provocaron un flujo violento de gas y partículas que ha esculpido enormes estructuras de gas. 
-    Una de estas estructuras, visible en la parte inferior derecha, mide unos 3,700 años luz de longitud.
-    Información y figura tomadas de https://science.nasa.gov/asset/hubble/starburst-galaxy-ngc-1569/",
+    #La galaxia llamada NGC 1569 brilla intensamente gracias a la luz de millones de estrellas jóvenes que se han formado recientemente. 
+    #NGC 1569 está formando estrellas a un ritmo 100 veces más rápido que el observado en nuestra propia galaxia, la Vía Láctea. 
+    #Este ritmo frenético de formación estelar ha continuado casi sin pausa durante los últimos 100 millones de años.
+    #En el centro de la galaxia se encuentra un grupo de tres cúmulos estelares gigantes, cada uno con más de un millón de estrellas. 
+    #(Dos de estos cúmulos están tan cerca entre sí que parecen uno solo). Estos cúmulos están ubicados en una gran cavidad central, 
+    #cuyo gas ha sido expulsado por la acción de muchas estrellas masivas y jóvenes que ya explotaron como supernovas. 
+    #Estas explosiones también provocaron un flujo violento de gas y partículas que ha esculpido enormes estructuras de gas. 
+    #Una de estas estructuras, visible en la parte inferior derecha, mide unos 3,700 años luz de longitud.
+    #Información y figura tomadas de https://science.nasa.gov/asset/hubble/starburst-galaxy-ngc-1569/",
     
     "NGC_6643.txt": "NGC 6643 es una galaxia espiral ubicada en la constelación de Draco.",
    
