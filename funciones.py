@@ -189,9 +189,9 @@ def sonificar_espirales(archivo, rango_onda=(6500, 6700), tempo=200, duracion_no
     axs[1].plot(wavelengths, intensities, label=f"Espectro normalizado {archivo_nombre}", color="blue")
 
     # Separar puntos de absorción y emisión
-    absorcion_mask = intensities < 1
-    emision_mask = intensities > 1
-    
+    absorcion_mask = intensities < mean_intensity
+    emision_mask = intensities >= mean_intensity
+
     axs[1].scatter(wavelengths[absorcion_mask], intensities[absorcion_mask], color="blue", s=20, label="Absorción (Azul)", zorder=3)
     axs[1].scatter(wavelengths[emision_mask], intensities[emision_mask], color="red", s=20, label="Emisión (Rojo)", zorder=3)
  
@@ -359,9 +359,9 @@ def sonificar_galaxia(
     axs[1].plot(wavelengths, intensities, label=f"Espectro normalizado {archivo_nombre}", color="blue")
     
     # Separar puntos de absorción y emisión
-    absorcion_mask = intensities < 1
-    emision_mask = intensities > 1
-    
+    absorcion_mask = intensities < mean_intensity
+    emision_mask = intensities >= mean_intensity
+
     axs[1].scatter(wavelengths[absorcion_mask], intensities[absorcion_mask], color="blue", s=20, label="Absorción (Azul)", zorder=3)
     axs[1].scatter(wavelengths[emision_mask], intensities[emision_mask], color="red", s=20, label="Emisión (Rojo)", zorder=3)
 

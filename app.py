@@ -16,7 +16,7 @@ SOUNDFONT_PATH = "FluidR3_GM.sf2"
 #SOUNDFONT_PATH = "GeneralUser-GS.sf2"
 
 # Streamlit le crea webs sin complique y las llama desde python
-st.set_page_config(page_title="Sonificación Galáctica", layout="centered")
+st.set_page_config(page_title="Sonificación Galáctica", layout="wide")
 st.title("🌌 Sonificación de Galaxias")
 st.write("Convierte datos astronómicos en música 🎶 usando MIDI")
 
@@ -75,19 +75,23 @@ descripciones_galaxias = {
 
 # Mostrar descripción e imagen si existe una galaxia seleccionada
 if galaxia:
+    col_desc, col_img = st.columns([2, 1])  # 2:1 para que el texto sea más ancho que la imagen
     descripcion = descripciones_galaxias.get(galaxia, "Sin descripción disponible para esta galaxia.")
-    st.markdown(f"**Descripción:** {descripcion}")
+    with col_desc:
+        st.markdown(f"**Descripción:** {descripcion}")
     # Buscar imagen en .png o .jpg
     imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.png'))
     if not os.path.exists(imagen_path):
         imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.jpg'))
-    if os.path.exists(imagen_path):
-        st.image(imagen_path, caption=f"Imagen de {galaxia}", use_column_width=True)
-    else:
-        st.info("No hay imagen disponible para esta galaxia.")
+    with col_img:
+        if os.path.exists(imagen_path):
+            st.image(imagen_path, caption=f"Imagen de {galaxia}", use_container_width=True)
+        else:
+            st.info("No hay imagen disponible para esta galaxia.")
 
 # Nuevo: Menú para elegir el tipo de galaxia
-tipo_galaxia = st.radio("Selecciona el tipo de galaxia para la sonificación:", ("Espiral", "Elíptica"))
+st.subheader("🎼 Selecciona el tipo de galaxia para la sonificación:")
+tipo_galaxia = st.radio("", ("Espiral", "Elíptica"), key="tipo_galaxia_radio")
 
 if uploaded_file is not None:
     # Guardar el archivo subido temporalmente
@@ -106,204 +110,295 @@ if galaxia and file_path:
 
     if data is not None:
         # Paso 3: Generar MIDI (move this block up if needed)
-        st.subheader("🎼 Generar sonido")
-        scale_range = st.slider("Rango de notas (C3 a C5)", 36, 84, (60, 72))
-        tempo = st.slider("Tempo (BPM)", min_value=40, max_value=240, value=120, step=1)
-        figura = st.selectbox(
-            "Duración de la nota",
-            [
-                ("𝅝 Redonda", 4.0),
-                ("𝅗𝅥 Blanca", 2.0),
-                ("𝅘𝅥 Negra", 1.0),
-                ("𝅘𝅥𝅮 Corchea", 0.5),
-                ("𝅘𝅥𝅯 Semicorchea", 0.25)
-            ],
-            index=2
-        )
-        duracion_nota = figura[1]
+        # Elimina o comenta esta línea:
+        # st.subheader("🎼 Generar sonido")
+        # Ahora el slider es el título principal:
+        st.subheader("🎼 Rango de longitudes de onda a sonificar")
         min_wavelength = float(data.iloc[:, 0].min())
         max_wavelength = float(data.iloc[:, 0].max())
         rango_onda = st.slider(
-            "Rango de longitudes de onda a sonificar",
+            "",
             min_value=min_wavelength,
             max_value=max_wavelength,
             value=(min_wavelength, max_wavelength),
             step=0.1
         )
 
-        # Paso 2: Visualización
-        st.subheader("🔭 Visualización de datos")
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data.iloc[:, 0], y=data.iloc[:, 1], mode='lines', name=galaxia))
-        fig.add_vrect(
-            x0=rango_onda[0], x1=rango_onda[1],
-            fillcolor="orange", opacity=0.3,
-            layer="below", line_width=0,
-            annotation_text="Región sonificada", annotation_position="top left"
-        )
-        # Agregar líneas horizontales para las notas MIDI seleccionadas
-        min_intensity = float(data.iloc[:, 1].min())
-        max_intensity = float(data.iloc[:, 1].max())
-        # Determinar el número de notas igual que en la sonificación
-        num_notes = scale_range[1] - scale_range[0] + 1
-        step_size = (max_intensity - min_intensity) / num_notes
-        # Líneas horizontales en los umbrales de intensidad de cada nota
-        for i in range(num_notes + 1):
-            intensity_value = min_intensity + i * step_size
-            fig.add_hline(
-                y=intensity_value,
-                line=dict(color="gray", width=1, dash="dot"),
-                opacity=0.3,
-                annotation_text=f"Umbral nota {i+scale_range[0]}",
-                annotation_position="right"
+        # Distribución en columnas: gráfica a la izquierda, opciones a la derecha
+        col_grafica, col_opciones = st.columns([2, 1])
+        with col_grafica:
+            st.subheader("🔭 Visualización de datos")
+            fig = go.Figure()
+            # Calcular la media de intensidad para separar absorción/emisión
+            mean_intensity = float(data.iloc[:, 1].mean())
+            absorcion_mask = data.iloc[:, 1] < mean_intensity
+            emision_mask = data.iloc[:, 1] >= mean_intensity
+
+            # Graficar puntos de absorción (azul)
+            fig.add_trace(go.Scatter(
+                x=data.iloc[:, 0][absorcion_mask],
+                y=data.iloc[:, 1][absorcion_mask],
+                mode='markers',
+                marker=dict(color='blue', size=5),
+                name='Absorción (Azul)'
+            ))
+            # Graficar puntos de emisión (rojo)
+            fig.add_trace(go.Scatter(
+                x=data.iloc[:, 0][emision_mask],
+                y=data.iloc[:, 1][emision_mask],
+                mode='markers',
+                marker=dict(color='red', size=5),
+                name='Emisión (Rojo)'
+            ))
+            # Graficar la curva general encima (opcional)
+            fig.add_trace(go.Scatter(
+                x=data.iloc[:, 0],
+                y=data.iloc[:, 1],
+                mode='lines',
+                line=dict(color='gray', width=1),
+                name=galaxia,
+                opacity=0.5
+            ))
+            fig.add_vrect(
+                x0=rango_onda[0], x1=rango_onda[1],
+                fillcolor="orange", opacity=0.3,
+                layer="below", line_width=0,
+                annotation_text="Región sonificada", annotation_position="top left"
             )
-        fig.update_layout(title=f"Datos de {nombre_base}", xaxis_title="X", yaxis_title="Y")
-        st.plotly_chart(fig)
-        # Opciones de sonificación e instrumentos (debajo de la gráfica)
-        st.subheader("🎼 Opciones de Sonificación")
-        instrumentos_midi = {
-            "Piano acústico": 0,
-            "Guitarra acústica": 24,
-            "Violín": 40,
-            "Trompeta": 56,
-            "Flauta": 73,
-            "Órgano": 19,
-            "Saxofón": 65,
-            "Sintetizador": 81
-        }
-        instrumento_emision = st.selectbox(
-            "Instrumento para Emisión",
-            list(instrumentos_midi.keys()),
-            index=0
-        )
-        instrumento_absorcion = st.selectbox(
-            "Instrumento para Absorción",
-            list(instrumentos_midi.keys()),
-            index=1
-        )
+            min_intensity = float(data.iloc[:, 1].min())
+            max_intensity = float(data.iloc[:, 1].max())
+            scale_range = st.slider("Rango de notas (C2 a C6)", 24, 96, (60, 72), key="notas_slider")
+            num_notes = scale_range[1] - scale_range[0] + 1
+            step_size = (max_intensity - min_intensity) / num_notes
 
-        # Selección de escala musical
-        escala_opciones = {
-            "Pentatónica de Am": "pentatonica_am",
-            "Armónica de Am": "armonica_am",
-            "Mayor de A": "mayor_a",
-            "Menor de A": "menor_a"
-        }
-        escala_seleccionada = st.selectbox(
-            "Selecciona la escala musical:",
-            list(escala_opciones.keys()),
-            index=0
-        )
-        midi_generado = False  # <-- Añade esta línea antes del botón
-
-        if st.button("🎹 Generar MIDI"):
-            # Lógica unificada usando la función nueva
-            nombre_base = os.path.splitext(galaxia)[0]
-            salida_midi_emision = f"{nombre_base}_emision.mid"
-            salida_midi_absorcion = f"{nombre_base}_absorcion.mid"
-            salida_midi_completo = f"{nombre_base}_completo.mid"
-            salida_wav_emision = f"{nombre_base}_emision.wav"
-            salida_wav_absorcion = f"{nombre_base}_absorcion.wav"
-            salida_wav_completo = f"{nombre_base}_completo.wav"
-
-            sonificar_galaxia(
-                file_path,
-                tipo_galaxia,
-                rango_onda=rango_onda,
-                tempo=tempo,
-                duracion_nota=duracion_nota,
-                salida_midi_emision=salida_midi_emision,
-                salida_midi_absorcion=salida_midi_absorcion,
-                salida_midi_completo=salida_midi_completo,
-                instrumento_emision=instrumentos_midi[instrumento_emision],
-                instrumento_absorcion=instrumentos_midi[instrumento_absorcion],
-                nombre_archivo=nombre_base,
-                escala=escala_opciones[escala_seleccionada]  # <-- Nuevo parámetro
+            # Paleta de colores cíclica para las notas (puedes personalizarla)
+            note_colors = [
+                "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#a93226", "#229954"
+            ]
+            # Define scale options and selection BEFORE plotting
+            escala_opciones = {
+                "Pentatónica de Am": "pentatonica_am",
+                "Armónica de Am": "armonica_am",
+                "Mayor de A": "mayor_a",
+                "Menor de A": "menor_a"
+            }
+            escala_seleccionada = st.selectbox(
+                "Selecciona la escala musical:",
+                list(escala_opciones.keys()),
+                index=0,
+                key="escala_selectbox_grafica"  # clave única para la gráfica
             )
-            # Convertir los MIDIs a WAV para previsualización
-            try:
-                convert_midi_to_wav(salida_midi_emision, salida_wav_emision, SOUNDFONT_PATH)
-            except Exception as e:
-                st.warning(f"No se pudo convertir {salida_midi_emision} a WAV: {e}")
-            try:
-                convert_midi_to_wav(salida_midi_absorcion, salida_wav_absorcion, SOUNDFONT_PATH)
-            except Exception as e:
-                st.warning(f"No se pudo convertir {salida_midi_absorcion} a WAV: {e}")
-            try:
-                convert_midi_to_wav(salida_midi_completo, salida_wav_completo, SOUNDFONT_PATH)
-            except Exception as e:
-                st.warning(f"No se pudo convertir {salida_midi_completo} a WAV: {e}")
+            
+            # Now you can use escala_opciones and escala_seleccionada for plotting
+            # Diccionario de escalas: cada una es una lista de notas MIDI dentro del rango seleccionado
+            escalas_midi = {
+                "pentatonica_am": [57, 60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84],  # A, C, D, E, G (Am pentatónica)
+                "armonica_am": [57, 59, 60, 62, 64, 65, 68, 69, 72, 74, 76, 77, 80, 81, 84],  # A, B, C, D, E, F, G#
+                "mayor_a": [57, 59, 61, 62, 64, 66, 68, 69, 71, 73, 74, 76, 78, 80, 81, 83, 85, 86, 88],  # A, B, C#, D, E, F#, G#
+                "menor_a": [57, 59, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84, 86, 88],  # A, B, C, D, E, F, G
+            }
+            escala_key = escala_opciones[escala_seleccionada]
+            notas_escala = [n for n in escalas_midi[escala_key] if scale_range[0] <= n <= scale_range[1]]
 
-            st.success("✅ Archivos MIDI generados correctamente.")
-            midi_generado = True
+            note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+            num_notes = len(notas_escala)
+            step_size = (max_intensity - min_intensity) / (num_notes - 1) if num_notes > 1 else 1
 
-        # Paso 4: Descargar y reproducir los tres MIDIs y WAVs por separado
-        if midi_generado:
-            # Mezclar los WAV de emisión y absorción para previsualización
-            from pydub import AudioSegment
-            wav_emision = f"{os.path.splitext(galaxia)[0]}_emision.wav"
-            wav_absorcion = f"{os.path.splitext(galaxia)[0]}_absorcion.wav"
-            wav_mix = f"{os.path.splitext(galaxia)[0]}_mix_preview.wav"
-            if os.path.exists(wav_emision) and os.path.exists(wav_absorcion):
-                audio_emision = AudioSegment.from_wav(wav_emision)
-                audio_absorcion = AudioSegment.from_wav(wav_absorcion)
-                min_len = min(len(audio_emision), len(audio_absorcion))
-                audio_emision = audio_emision[:min_len]
-                audio_absorcion = audio_absorcion[:min_len]
-                audio_mix = audio_emision.overlay(audio_absorcion)
-                audio_mix.export(wav_mix, format="wav")
-                st.subheader("🔊 Previsualizar sonido (Emisión + Absorción)")
-                st.audio(wav_mix, format="audio/wav")
-                st.caption("La región resaltada en la gráfica corresponde a la sección sonificada. La barra de audio te permite escuchar esa sección.")
-            else:
-                st.warning("No se encontraron ambos archivos de emisión y absorción para la mezcla.")
+            for i, midi_number in enumerate(notas_escala):
+                intensity_value = min_intensity + i * step_size
+                color = note_colors[i % len(note_colors)]
+                note_name = note_names[midi_number % 12]
+                fig.add_hline(
+                    y=intensity_value,
+                    line=dict(color=color, width=1, dash="dot"),
+                    opacity=0.7,
+                    annotation_text=f"{note_name}",
+                    annotation_position="left",
+                    annotation_font_color=color
+                )
+            fig.update_layout(
+                title=f"Datos de {nombre_base}",
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                margin=dict(l=60, r=10, t=40, b=40),
+                xaxis=dict(
+                    color="black",
+                    showline=True,
+                    linewidth=2,
+                    linecolor="black",
+                    mirror=True,
+                    showgrid=False,
+                    zeroline=False,
+                    title=dict(text="Longitud de onda $\\AA$", font=dict(color="black")),
+                    tickfont=dict(color="black")  # <-- Esto hace visibles los números del eje X
+                ),
+                yaxis=dict(
+                    color="black",
+                    showline=True,
+                    linewidth=2,
+                    linecolor="black",
+                    mirror=True,
+                    showgrid=False,
+                    zeroline=False,
+                    title=dict(text="Intensidad instrumental", font=dict(color="black")),
+                    tickfont=dict(color="black")  # <-- Esto hace visibles los números del eje Y
+                )
+            )
+            st.plotly_chart(
+                fig,
+                config={"displayModeBar": True}
+            )
 
-            # Botones de descarga para los tres MIDIs y WAVs
+        with col_opciones:
+            st.subheader("🎼 Opciones de Sonificación")
+            tempo = st.slider("Tempo (BPM)", min_value=40, max_value=240, value=120, step=1)
+            figura = st.selectbox(
+                "Duración de la nota",
+                [
+                    ("𝅝 Redonda", 4.0),
+                    ("𝅗𝅥 Blanca", 2.0),
+                    ("𝅘𝅥 Negra", 1.0),
+                    ("𝅘𝅥𝅮 Corchea", 0.5),
+                    ("𝅘𝅥𝅯 Semicorchea", 0.25)
+                ],
+                index=2
+            )
+            duracion_nota = figura[1]
+            instrumentos_midi = {
+                "Piano acústico": 0,
+                "Guitarra acústica": 24,
+                "Violín": 40,
+                "Trompeta": 56,
+                "Flauta": 73,
+                "Órgano": 19,
+                "Saxofón": 65,
+                "Sintetizador": 81
+            }
+            instrumento_emision = st.selectbox(
+                "Instrumento para Emisión",
+                list(instrumentos_midi.keys()),
+                index=0
+            )
+            instrumento_absorcion = st.selectbox(
+                "Instrumento para Absorción",
+                list(instrumentos_midi.keys()),
+                index=1
+            )
+            # Botón grande y más alto
+            st.markdown(
+                """
+                <style>
+                div.stButton > button {
+                    font-size: 1.5em;
+                    height: 4.5em; /* Más alto aún */
+                    width: 100%;
+                    background-color: #6c63ff;
+                    color: white;
+                    border-radius: 10px;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button("🎹 Sonificar", use_container_width=True):
+                # Lógica unificada usando la función nueva
+                nombre_base = os.path.splitext(galaxia)[0]
+                salida_midi_emision = f"{nombre_base}_emision.mid"
+                salida_midi_absorcion = f"{nombre_base}_absorcion.mid"
+                salida_midi_completo = f"{nombre_base}_completo.mid"
+                salida_wav_emision = f"{nombre_base}_emision.wav"
+                salida_wav_absorcion = f"{nombre_base}_absorcion.wav"
+                salida_wav_completo = f"{nombre_base}_completo.wav"
+
+                sonificar_galaxia(
+                    file_path,
+                    tipo_galaxia,
+                    rango_onda=rango_onda,
+                    tempo=tempo,
+                    duracion_nota=duracion_nota,
+                    salida_midi_emision=salida_midi_emision,
+                    salida_midi_absorcion=salida_midi_absorcion,
+                    salida_midi_completo=salida_midi_completo,
+                    instrumento_emision=instrumentos_midi[instrumento_emision],
+                    instrumento_absorcion=instrumentos_midi[instrumento_absorcion],
+                    nombre_archivo=nombre_base,
+                    escala=escala_opciones[escala_seleccionada]
+                )
+                # Convertir los MIDIs a WAV para previsualización
+                try:
+                    convert_midi_to_wav(salida_midi_emision, salida_wav_emision, SOUNDFONT_PATH)
+                except Exception as e:
+                    st.warning(f"No se pudo convertir {salida_midi_emision} a WAV: {e}")
+                try:
+                    convert_midi_to_wav(salida_midi_absorcion, salida_wav_absorcion, SOUNDFONT_PATH)
+                except Exception as e:
+                    st.warning(f"No se pudo convertir {salida_midi_absorcion} a WAV: {e}")
+                try:
+                    convert_midi_to_wav(salida_midi_completo, salida_wav_completo, SOUNDFONT_PATH)
+                except Exception as e:
+                    st.warning(f"No se pudo convertir {salida_midi_completo} a WAV: {e}")
+
+                st.success("✅ Archivos MIDI generados correctamente.")
+                st.session_state["midi_generado"] = True
+
+        # Opciones de descarga horizontales
+        if st.session_state["midi_generado"]:
+            # Elimina este bloque de descargas y consejo:
+            # archivos = [
+            #     (f"{os.path.splitext(galaxia)[0]}_emision.mid", "⬇️ MIDI Emisión"),
+            #     (f"{os.path.splitext(galaxia)[0]}_emision.wav", "⬇️ WAV Emisión"),
+            #     (f"{os.path.splitext(galaxia)[0]}_absorcion.mid", "⬇️ MIDI Absorción"),
+            #     (f"{os.path.splitext(galaxia)[0]}_absorcion.wav", "⬇️ WAV Absorción"),
+            #     (f"{os.path.splitext(galaxia)[0]}_completo.mid", "⬇️ MIDI Completo"),
+            #     (f"{os.path.splitext(galaxia)[0]}_completo.wav", "⬇️ WAV Completo"),
+            # ]
+            # cols = st.columns(6)
+            # for (archivo, label), col in zip(archivos, cols):
+            #     with col:
+            #         if os.path.exists(archivo):
+            #             with open(archivo, "rb") as f:
+            #                 st.download_button(label, f, file_name=archivo)
+            # st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
+            # Aquí pon la previsualización de audio
+            if st.session_state["midi_generado"]:
+                from pydub import AudioSegment
+                wav_emision = f"{os.path.splitext(galaxia)[0]}_emision.wav"
+                wav_absorcion = f"{os.path.splitext(galaxia)[0]}_absorcion.wav"
+                wav_mix = f"{os.path.splitext(galaxia)[0]}_mix_preview.wav"
+                if os.path.exists(wav_emision) and os.path.exists(wav_absorcion):
+                    audio_emision = AudioSegment.from_wav(wav_emision)
+                    audio_absorcion = AudioSegment.from_wav(wav_absorcion)
+                    min_len = min(len(audio_emision), len(audio_absorcion))
+                    audio_emision = audio_emision[:min_len]
+                    audio_absorcion = audio_absorcion[:min_len]
+                    audio_mix = audio_emision.overlay(audio_absorcion)
+                    audio_mix.export(wav_mix, format="wav")
+                    st.subheader("🔊 Previsualizar sonido")
+                    st.audio(wav_mix, format="audio/wav")
+                    # Botones de descarga en horizontal
+                    col1, col2, col3, col4, col5, col6 = st.columns(6)
+                    archivos = [
+                        (f"{os.path.splitext(galaxia)[0]}_emision.mid", "⬇️ MIDI Emisión"),
+                        (f"{os.path.splitext(galaxia)[0]}_emision.wav", "⬇️ WAV Emisión"),
+                        (f"{os.path.splitext(galaxia)[0]}_absorcion.mid", "⬇️ MIDI Absorción"),
+                        (f"{os.path.splitext(galaxia)[0]}_absorcion.wav", "⬇️ WAV Absorción"),
+                        (f"{os.path.splitext(galaxia)[0]}_completo.mid", "⬇️ MIDI Completo"),
+                        (f"{os.path.splitext(galaxia)[0]}_completo.wav", "⬇️ WAV Completo"),
+                    ]
+                    cols = [col1, col2, col3, col4, col5, col6]
+                    for (archivo, label), col in zip(archivos, cols):
+                        with col:
+                            if os.path.exists(archivo):
+                                with open(archivo, "rb") as f:
+                                    st.download_button(label, f, file_name=archivo, key=f"{archivo}_descarga1")
+                    st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
             for archivo_midi, archivo_wav, label in [
                 (f"{os.path.splitext(galaxia)[0]}_emision.mid", f"{os.path.splitext(galaxia)[0]}_emision.wav", "Emisión"),
                 (f"{os.path.splitext(galaxia)[0]}_absorcion.mid", f"{os.path.splitext(galaxia)[0]}_absorcion.wav", "Absorción"),
                 (f"{os.path.splitext(galaxia)[0]}_completo.mid", f"{os.path.splitext(galaxia)[0]}_completo.wav", "Completo"),
             ]:
                 if os.path.exists(archivo_midi):
-                    with open(archivo_midi, "rb") as f:
-                        st.download_button(f"⬇️ Descargar MIDI {label}", f, file_name=archivo_midi)
+                    st.download_button(f"⬇️ MIDI {label}", open(archivo_midi, "rb"), file_name=archivo_midi, key=archivo_midi)
                 if os.path.exists(archivo_wav):
-                    with open(archivo_wav, "rb") as f:
-                        st.download_button(f"⬇️ Descargar WAV {label}", f, file_name=archivo_wav)
-            st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
-# Cambia el layout a wide
-st.set_page_config(page_title="Sonificación Galáctica", layout="wide")
-
-# Paso 2: Visualización y descargas en columnas
-st.subheader("🔭 Visualización de datos")
-col_grafica, col_descargas = st.columns([3, 1])  # 3:1 para que la gráfica sea más ancha
-
-with col_grafica:
-    st.plotly_chart(fig, use_container_width=True)
-
-with col_descargas:
-    if midi_generado:
-        from pydub import AudioSegment
-        wav_emision = f"{os.path.splitext(galaxia)[0]}_emision.wav"
-        wav_absorcion = f"{os.path.splitext(galaxia)[0]}_absorcion.wav"
-        wav_mix = f"{os.path.splitext(galaxia)[0]}_mix_preview.wav"
-        if os.path.exists(wav_emision) and os.path.exists(wav_absorcion):
-            audio_emision = AudioSegment.from_wav(wav_emision)
-            audio_absorcion = AudioSegment.from_wav(wav_absorcion)
-            min_len = min(len(audio_emision), len(audio_absorcion))
-            audio_emision = audio_emision[:min_len]
-            audio_absorcion = audio_absorcion[:min_len]
-            audio_mix = audio_emision.overlay(audio_absorcion)
-            audio_mix.export(wav_mix, format="wav")
-            st.subheader("🔊 Previsualizar sonido")
-            st.audio(wav_mix, format="audio/wav")
-        for archivo_midi, archivo_wav, label in [
-            (f"{os.path.splitext(galaxia)[0]}_emision.mid", f"{os.path.splitext(galaxia)[0]}_emision.wav", "Emisión"),
-            (f"{os.path.splitext(galaxia)[0]}_absorcion.mid", f"{os.path.splitext(galaxia)[0]}_absorcion.wav", "Absorción"),
-            (f"{os.path.splitext(galaxia)[0]}_completo.mid", f"{os.path.splitext(galaxia)[0]}_completo.wav", "Completo"),
-        ]:
-            if os.path.exists(archivo_midi):
-                st.download_button(f"⬇️ MIDI {label}", open(archivo_midi, "rb"), file_name=archivo_midi, key=archivo_midi)
-            if os.path.exists(archivo_wav):
-                st.download_button(f"⬇️ WAV {label}", open(archivo_wav, "rb"), file_name=archivo_wav, key=archivo_wav)
+                    st.download_button(f"⬇️ WAV {label}", open(archivo_wav, "rb"), file_name=archivo_wav, key=archivo_wav)
         st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
