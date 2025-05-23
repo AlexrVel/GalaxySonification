@@ -19,7 +19,14 @@ SOUNDFONT_PATH = "FluidR3_GM.sf2"
 st.set_page_config(page_title="Sonificación Galáctica", layout="wide")
 st.title("🌌 Sonificación de Galaxias")
 st.write("Convierte datos astronómicos en música 🎶 usando MIDI")
-
+st.markdown(
+    """
+    ¿Alguna vez te has preguntado cómo sería escuchar una galaxia? Gracias a las tecnologías de sonificación, hoy es posible traducir datos astronómicos en sonidos y explorar el cosmos a través del sentido de la audición.
+    
+    Galaxy Sonification es una aplicación interactiva que transforma los espectros electromagnéticos de las galaxias en paisajes sonoros, permitiendo identificar características distintivas según su tipo morfológico. Aunque existen tres tipos principales de galaxias —elípticas, espirales e irregulares—, la aplicación ofrece actualmente dos modos específicos de sonificación: uno para galaxias elípticas y otro para espirales. Sin embargo, también puedes cargar espectros de galaxias irregulares y experimentar con ambos modos para descubrir nuevas formas de representación sonora.
+    """
+)
+st.info("Para una generación más rápida del audio, te recomendamos utilizar tempos altos o seleccionar duraciones cortas para las notas, como corcheas o semicorcheas. Esto no solo agiliza el procesamiento, sino que también permite una exploración más fluida del contenido espectral.")
 # Paso 1: Selección de galaxia y carga de archivo en columnas
 col_galaxia, col_upload = st.columns([2, 1])
 
@@ -61,7 +68,7 @@ descripciones_galaxias = {
         "NGC 2276 es una galaxia espiral en interacción. En la mayoría de las galaxias espirales, el centro suele mostrar un núcleo brillante compuesto por estrellas más viejas de color amarillento. "
         "Sin embargo, en el caso de NGC 2276, ese núcleo parece estar desplazado hacia la parte superior izquierda. "
         "Esto se debe a que una galaxia vecina situada a la derecha de NGC 2276 (NGC 2300, que no aparece en la imagen) la está atrayendo gravitacionalmente. "
-        "Esa fuerza está tirando del disco de estrellas azules en un lado, distorsionando la forma típica de \"huevo frito\" que suelen tener estas galaxias. "
+        "Esa fuerza está tirando del disco de estrellas azules en un lado, distorsionando la forma típica de 'huevo frito' que suelen tener estas galaxias. "
         "Este tipo de “tira y afloja” entre galaxias cercanas no es raro en el universo. Sin embargo, al igual que los copos de nieve, ningún encuentro cercano entre galaxias es exactamente igual a otro. "
         "Además, en el borde superior izquierdo de NGC 2276 se forma un brazo azul brillante, compuesto por estrellas jóvenes y masivas de corta vida. "
         "Estas estrellas marcan una región de intensa formación estelar, que pudo haber sido provocada por una colisión anterior con una galaxia enana. "
@@ -69,6 +76,18 @@ descripciones_galaxias = {
         "Al atravesar este gas, se comprime y colapsa, dando lugar al nacimiento masivo de nuevas estrellas. "
         "La galaxia espiral NGC 2276 se encuentra a unos 120 millones de años luz, en la constelación boreal de Cefeo. "
         "Información y figura tomadas de https://science.nasa.gov/asset/hubble/ngc-2276/"
+    ),
+    "NGC_3379.txt": (
+        "M105 (también conocida como NGC 3379) es una galaxia elíptica que se encuentra a unos 32 millones de años luz de distancia, en la constelación de Leo. Es la galaxia elíptica más grande del catálogo de Messier que no forma parte del cúmulo de Virgo. Sin embargo, M105 sí pertenece al Grupo de M96 (o Leo I), junto con sus vecinas M95, M96 y varias otras galaxias más débiles.\n"
+        "La galaxia fue descubierta en 1781 por Pierre Méchain, colega de Charles Messier, pocos días después de haber localizado M95 y M96. Curiosamente, M105 no fue incluida originalmente en el catálogo de Messier. Fue añadida en 1947, cuando la astrónoma Helen S. Hogg encontró una carta escrita por Méchain en la que describía esta galaxia.\n"
+        "El telescopio espacial Hubble observó el núcleo de M105 y midió el movimiento de las estrellas que giran alrededor de su centro. Estas observaciones confirmaron la presencia de un agujero negro supermasivo en el corazón de la galaxia. Según estimaciones recientes, este agujero negro podría tener una masa hasta 200 millones de veces mayor que la del Sol. Información y figura tomadas de https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-105/"
+    ),
+    "NGC_4485.txt": (
+        "La galaxia irregular NGC 4485 muestra claras señales de haber estado involucrada en una especie de “choque y fuga” cósmico con otra galaxia que pasó muy cerca. Pero en lugar de destruirla, este encuentro fortuito ha dado lugar al nacimiento de una nueva generación de estrellas, y posiblemente, también de planetas.\n"
+        "En el lado derecho de la galaxia se observa una intensa actividad de formación estelar, visible en la abundancia de estrellas jóvenes azules y nebulosas rosadas donde se están gestando nuevas estrellas. En contraste, el lado izquierdo parece más intacto, conservando algunos indicios de lo que alguna vez fue una estructura espiral, que entonces evolucionaba de manera más tranquila.\n"
+        "La responsable de este encuentro es la galaxia más grande NGC 4490, que no aparece en la imagen, ubicada fuera del encuadre, en la parte inferior. Estas dos galaxias rozaron sus bordes hace millones de años y actualmente están separadas por unos 24,000 años luz. La interacción gravitacional entre ambas creó ondas de gas y polvo más densas, lo que disparó la intensa formación de estrellas en ambas galaxias.\n"
+        "NGC 4485 es un ejemplo cercano del tipo de colisiones cósmicas que eran mucho más comunes hace miles de millones de años, cuando el universo era más pequeño y las galaxias estaban mucho más juntas.\n"
+        "Esta galaxia se encuentra a unos 25 millones de años luz, en la constelación boreal de Canes Venatici (Los Perros de Caza). Información y figura tomadas de https://science.nasa.gov/asset/hubble/ngc-4485/"
     ),
     # Agrega aquí más descripciones según tus galaxias
 }
@@ -83,6 +102,8 @@ if galaxia:
     imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.png'))
     if not os.path.exists(imagen_path):
         imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.jpg'))
+    if not os.path.exists(imagen_path):
+        imagen_path = os.path.join(DATA_DIR, galaxia.replace('.txt', '.jpeg'))
     with col_img:
         if os.path.exists(imagen_path):
             st.image(imagen_path, caption=f"Imagen de {galaxia}", use_container_width=True)
@@ -167,7 +188,7 @@ if galaxia and file_path:
             )
             min_intensity = float(data.iloc[:, 1].min())
             max_intensity = float(data.iloc[:, 1].max())
-            scale_range = st.slider("Rango de notas (C2 a C6)", 24, 96, (60, 72), key="notas_slider")
+            scale_range = st.slider("Rango de notas (C1 a C8)", 24, 108, (60, 72), key="notas_slider")
             num_notes = scale_range[1] - scale_range[0] + 1
             step_size = (max_intensity - min_intensity) / num_notes
 
