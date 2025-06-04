@@ -31,7 +31,8 @@ st.info("Para una generación más rápida del audio, te recomendamos utilizar t
 col_galaxia, col_upload = st.columns([2, 1])
 
 with col_upload:
-    uploaded_file = st.file_uploader("O sube tu propio espectro (.txt)", type=["txt"])
+    st.markdown('O sube tu propio espectro (.txt) [formato NED, ver más en [NED](https://ned.ipac.caltech.edu/)]')
+    uploaded_file = st.file_uploader("", type=["txt"])
 
 with col_galaxia:
     galaxias = list_available_galaxies(DATA_DIR)
@@ -161,7 +162,7 @@ if galaxia and file_path:
                 y=data.iloc[:, 1][absorcion_mask],
                 mode='markers',
                 marker=dict(color='blue', size=5),
-                name='Absorción (Azul)'
+                name='Absorción'
             ))
             # Graficar puntos de emisión (rojo)
             fig.add_trace(go.Scatter(
@@ -169,7 +170,7 @@ if galaxia and file_path:
                 y=data.iloc[:, 1][emision_mask],
                 mode='markers',
                 marker=dict(color='red', size=5),
-                name='Emisión (Rojo)'
+                name='Emisión'
             ))
             # Graficar la curva general encima (opcional)
             fig.add_trace(go.Scatter(
@@ -178,7 +179,7 @@ if galaxia and file_path:
                 mode='lines',
                 line=dict(color='gray', width=1),
                 name=galaxia,
-                opacity=0.5
+                opacity=1.0
             ))
             fig.add_vrect(
                 x0=rango_onda[0], x1=rango_onda[1],
@@ -363,6 +364,7 @@ if galaxia and file_path:
                 st.session_state["midi_generado"] = True
 
         # Opciones de descarga horizontales
+        # --- KEEP THIS BLOCK (horizontal download buttons) ---
         if st.session_state["midi_generado"]:
             # Elimina este bloque de descargas y consejo:
             # archivos = [
@@ -380,7 +382,6 @@ if galaxia and file_path:
             #             with open(archivo, "rb") as f:
             #                 st.download_button(label, f, file_name=archivo)
             # st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
-            # Aquí pon la previsualización de audio
             if st.session_state["midi_generado"]:
                 from pydub import AudioSegment
                 wav_emision = f"{os.path.splitext(galaxia)[0]}_emision.wav"
@@ -423,3 +424,4 @@ if galaxia and file_path:
                 if os.path.exists(archivo_wav):
                     st.download_button(f"⬇️ WAV {label}", open(archivo_wav, "rb"), file_name=archivo_wav, key=archivo_wav)
         st.info("🎧 Consejo: Si el archivo MIDI te suena raro, intenta bajar el rango de notas o tempo.")
+st.markdown('**Leyenda:** <span style="color:blue">●</span> Absorción &nbsp;&nbsp; <span style="color:red">●</span> Emisión', unsafe_allow_html=True)
