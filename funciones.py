@@ -304,6 +304,18 @@ def graficar_galaxia_plotly(
     full_scale = [(name, note + octave) for octave in octavas for name, note in pentatonic_scale]
     num_notes = cantidad_de_octavas * 12
 
+    # Definir el rango del eje Y según el tipo de galaxia
+    if tipo_galaxia.lower() == "espiral":
+        y_range_min = 0
+        y_range_max = 8
+    elif tipo_galaxia.lower() == "elíptica":
+        y_range_min = 0
+        y_range_max = 2
+    else:
+        # Por defecto, usar el rango de intensidad de los datos si el tipo no es reconocido
+        y_range_min = min_intensity
+        y_range_max = max_intensity
+
     # Aquí el step_size depende del tipo de galaxia
     if tipo_galaxia.lower() == "espiral":
         step_size = 8 / num_notes  # Rango máximo de espirales es 8
@@ -373,13 +385,13 @@ def graficar_galaxia_plotly(
 
     # Región sonificada (axvspan equivalente)
     fig.add_shape(type="rect",
-        x0=rango_onda[0], y0=0, x1=rango_onda[1], y1=1.05 * max_intensity, # Ajustar y1 si es necesario
+        x0=rango_onda[0], y0=y_range_min, x1=rango_onda[1], y1=y_range_max, # Ajustar y1 si es necesario
         line=dict(width=0),
         fillcolor="yellow",
         opacity=0.3,
         layer="below"
     )
-    fig.add_annotation(x=(rango_onda[0] + rango_onda[1]) / 2, y=1.02 * max_intensity, text="Región sonificada", showarrow=False)
+    fig.add_annotation(x=(rango_onda[0] + rango_onda[1]) / 2, y=y_range_max * 1.02, text="Región sonificada", showarrow=False)
 
     # Separar puntos de absorción y emisión en la región sonificada
     absorcion_mask = intensities < mean_intensity
@@ -403,14 +415,16 @@ def graficar_galaxia_plotly(
      ))
 
     # Líneas horizontales para las notas
+    min_midi_in_scale = min(n[1] for n in full_chromatic_scale)
+    max_midi_in_scale = max(n[1] for n in full_chromatic_scale)
+
     for i, note_info in enumerate(full_chromatic_scale):
         note_name_full = note_info[0]
         note_midi = note_info[1]
         note_base_name = ''.join([i for i in note_name_full if not i.isdigit()]) # Extract C, C#, D, etc.
 
-        # Calcular la posición Y de la línea
-        # Asegurarse de que la intensidad mapeada esté dentro del rango de la gráfica
-        y_pos = min_intensity + (note_midi - min(n[1] for n in full_chromatic_scale)) * (max_intensity - min_intensity) / (max(n[1] for n in full_chromatic_scale) - min(n[1] for n in full_chromatic_scale))
+        # Calcular la posición Y de la línea mapeando las notas MIDI al rango de intensidad deseado
+        y_pos = y_range_min + (note_midi - min_midi_in_scale) * (y_range_max - y_range_min) / (max_midi_in_scale - min_midi_in_scale)
 
         # Asignar color y nombre de la nota
         color = note_colors.get(note_base_name, "lightgray") # Usar get para evitar KeyError
@@ -428,10 +442,11 @@ def graficar_galaxia_plotly(
         yaxis_title="Intensidad normalizada",
         height=700, # Ajustar altura para una sola gráfica
         showlegend=True,
+        yaxis_range=[y_range_min, y_range_max],
         paper_bgcolor='white',
         plot_bgcolor='white',
-        xaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black')),
-        yaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black')),
+        xaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black'), showgrid=False),
+        yaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black'), showgrid=False),
         legend=dict(font=dict(color='black'))
     )
 
