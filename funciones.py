@@ -7,26 +7,49 @@ from midi2audio import FluidSynth
 import subprocess
 from pydub import AudioSegment
 import matplotlib.pyplot as plt
-import os
-from src.data_loader import load_galaxy_data
 import music21 as m21
 
 def cargar_datos(archivo):
+    # Verificar que el archivo existe y no es None
+    if archivo is None:
+        return None
+    
+    if not os.path.exists(archivo):
+        return None
+        
+    try:
         # Cargar datos
-    with open(archivo, 'r') as f:
-        primera_linea = f.readline().strip()
-    # Detectar si hay encabezado
+        with open(archivo, 'r') as f:
+            primera_linea = f.readline().strip()
+        # Detectar si hay encabezado
+        try:
+            [float(x) for x in primera_linea.split()]
+            skip = 0  # No es encabezado
+        except ValueError:
+            skip = 1  # Es encabezado
+        # Intentar leer con diferentes separadores
+        try:
+            datos = pd.read_csv(archivo, sep=r"\s+", comment='#', header=None, skiprows=skip, dtype={0: float, 1: float})
+        except:
+            datos = pd.read_csv(archivo, sep=';', comment='#', header=None, skiprows=skip, dtype={0: float, 1: float})
+        return datos
+    except Exception as e:
+        print(f"Error al cargar datos de {archivo}: {e}")
+        return None
+
+def load_galaxy_data(file_path):
+    """Función para mantener compatibilidad con código existente"""
     try:
-        [float(x) for x in primera_linea.split()]
-        skip = 0  # No es encabezado
-    except ValueError:
-        skip = 1  # Es encabezado
-    # Intentar leer con diferentes separadores
-    try:
-        datos = pd.read_csv(archivo, sep=r"\s+", comment='#', header=None, skiprows=skip, dtype={0: float, 1: float})
-    except:
-        datos = pd.read_csv(archivo, sep=';', comment='#', header=None, skiprows=skip, dtype={0: float, 1: float})
-    return (datos)
+        return cargar_datos(file_path).values
+    except Exception as e:
+        print(f"Error cargando archivo {file_path}: {e}")
+        return None
+
+def list_available_galaxies(data_dir):
+    """
+    Lista todos los archivos .txt disponibles en el directorio de datos.
+    """
+    return [f for f in os.listdir(data_dir) if f.endswith(".txt")]
 
 def detectar_region_plana(archivo, ventana=100, suavizado=10, rango_central=(0.95, 1.05)):
     
@@ -144,6 +167,8 @@ def sonificar_galaxia(
         step_size = 8 / num_notes  # Rango máximo de espirales es 8
     elif tipo_galaxia.lower() == "elíptica":
         step_size = 2 / num_notes # Rango máximo de elípticas es 2
+    elif tipo_galaxia.lower() == "irregular":
+        step_size = 5 / num_notes  # Rango máximo de irregulares es 5
     else:
         step_size = (max_intensity - min_intensity) / num_notes  # por defecto
 
@@ -239,21 +264,85 @@ def tipo(archivo, rango_onda=(3800, 4200)):
 def convertir_midi_a_wav(nombre_midi, nombre_wav):
     sf2 = "default.sf2"  # soundfont (asegúrate de tenerlo)
     FluidSynth(sound_font=sf2).midi_to_audio(nombre_midi, nombre_wav)
-    
-def convertir_midi_a_wav_musescore(midi_file, wav_file, musescore_path="C:/Program Files/MuseScore 4/bin/MuseScore4.exe"):
-    """
-    Convierte un archivo MIDI a WAV usando MuseScore 4.
-    """
-    if not os.path.isfile(musescore_path):
-        raise FileNotFoundError("MuseScore no se encontró en la ruta indicada.")
 
-    subprocess.run([musescore_path, midi_file, "-o", wav_file], check=True)
+def convert_midi_to_wav(midi_path, wav_path, soundfont_path="FluidR3_GM.sf2", fluidsynth_path="fluidsynth"):
+    """
+    Convierte un archivo MIDI a WAV sin consola negra (Windows) y con rutas absolutas seguras.
+    """
+    midi_path = os.path.abspath(midi_path)
+    wav_path = os.path.abspath(wav_path)
+    soundfont_path = os.path.abspath(soundfont_path)
+
+    if not os.path.exists(midi_path):
+        raise FileNotFoundError(f"MIDI no encontrado: {midi_path}")
+    if not os.path.exists(soundfont_path):
+        raise FileNotFoundError(f"SoundFont no encontrado: {soundfont_path}")
+
+    command = [
+        fluidsynth_path,
+        "-ni",
+        "-F", wav_path,
+        "-r", "44100",
+        soundfont_path,
+        midi_path
+    ]
+
+    print("🔧 Ejecutando comando:", " ".join(command))
+
+    startupinfo = None
+    if os.name == "nt":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+    try:
+        subprocess.run(command, check=True, startupinfo=startupinfo)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error al ejecutar FluidSynth: {e}")
+
     
 def mezclar_wavs(wav1, wav2, salida="mezcla.wav"):
     audio1 = AudioSegment.from_wav(wav1)
     audio2 = AudioSegment.from_wav(wav2)
     mezcla = audio1.overlay(audio2)
     mezcla.export(salida, format="wav")
+
+def map_values_to_midi_notes(data, scale=(60, 72)):
+    """
+    Convierte valores Y en notas MIDI dentro de un rango dado.
+    Retorna una lista de notas.
+    """
+    y_values = data[:, 1]
+    min_val, max_val = y_values.min(), y_values.max()
+    midi_min, midi_max = scale
+
+    # Normaliza y escala a notas
+    notes = ((y_values - min_val) / (max_val - min_val)) * (midi_max - midi_min) + midi_min
+    return notes.astype(int)
+
+def map_to_velocity(data, min_vel=40, max_vel=100):
+    """
+    Escala el eje Y como velocidad (intensidad).
+    """
+    y = data[:, 1]
+    return ((y - y.min()) / (y.max() - y.min()) * (max_vel - min_vel) + min_vel).astype(int)
+
+def create_midi_file(notes, velocities, output_file="output.mid", tempo=120):
+    """
+    Genera un archivo MIDI dado un conjunto de notas y velocidades.
+    """
+    track = 0
+    channel = 0
+    time = 0  # inicio
+    duration = 1  # 1 beat por nota
+
+    midi = MIDIFile(1)  # 1 track
+    midi.addTempo(track, time, tempo)
+
+    for i, pitch in enumerate(notes):
+        midi.addNote(track, channel, pitch, time + i, duration, int(velocities[i]))
+
+    with open(output_file, "wb") as f:
+        midi.writeFile(f)
 
 
 def graficar_galaxia_plotly(
@@ -311,6 +400,10 @@ def graficar_galaxia_plotly(
     elif tipo_galaxia.lower() == "elíptica":
         y_range_min = 0
         y_range_max = 2
+    elif tipo_galaxia.lower() == "irregular":
+        # Para galaxias irregulares, usar un rango intermedio
+        y_range_min = 0
+        y_range_max = 5
     else:
         # Por defecto, usar el rango de intensidad de los datos si el tipo no es reconocido
         y_range_min = min_intensity
